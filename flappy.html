@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Voice Flappy Game</title>
+
+<style>
+body {
+    margin: 0;
+    background: linear-gradient(to bottom, #4facfe, #00f2fe);
+    font-family: Arial, sans-serif;
+    overflow: hidden;
+}
+
+canvas {
+    display: block;
+    margin: auto;
+    background: linear-gradient(to bottom, #87CEEB, #e0f7fa);
+    border-radius: 12px;
+}
+
+.score {
+    position: fixed;
+    top: 10px;
+    width: 100%;
+    text-align: center;
+    color: white;
+    font-size: 20px;
+    font-weight: bold;
+}
+
+.controls {
+    position: fixed;
+    bottom: 20px;
+    width: 100%;
+    text-align: center;
+}
+
+button {
+    padding: 12px 20px;
+    margin: 5px;
+    font-size: 16px;
+    border: none;
+    border-radius: 25px;
+    background: #ffdd59;
+}
+</style>
+</head>
+
+<body>
+
+<div class="score">
+Score: <span id="score">0</span> |
+High Score: <span id="highScore">0</span>
+</div>
+
+<canvas id="game"></canvas>
+
+<div class="controls">
+<button onclick="pauseGame()">Pause</button>
+<button onclick="resumeGame()">Resume</button>
+</div>
+
+<script>
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+
+canvas.width = Math.min(window.innerWidth - 10, 420);
+canvas.height = window.innerHeight - 120;
+
+// Images
+const playerImg = new Image();
+playerImg.src = "player.jpg";
+
+const gameOverImg = new Image();
+gameOverImg.src = "gameover.jpg";
+
+// YOUR VOICE SOUNDS 🎙️
+const flapSound = new Audio("flap.mp3");
+const gameOverSound = new Audio("gameover.mp3");
+
+// Game variables
+let bird = { x: 80, y: canvas.height / 2, size: 45, velocity: 0 };
+let gravity = 0.5;
+let lift = -8;
+
+let pipes = [];
+let frame = 0;
+let score = 0;
+let paused = false;
+let gameOver = false;
+
+let highScore = localStorage.getItem("flappyHigh") || 0;
+document.getElementById("highScore").innerText = highScore;
+
+// Draw Player
+function drawPlayer() {
+    ctx.drawImage(
+        playerImg,
+        bird.x - bird.size / 2,
+        bird.y - bird.size / 2,
+        bird.size,
+        bird.size
+    );
+}
+
+// Pipes
+function createPipe() {
+    let gap = 140;
+    let top = Math.random() * (canvas.height - gap - 100) + 50;
+    pipes.push({ x: canvas.width, top, bottom: top + gap });
+}
+
+function drawPipes() {
+    ctx.fillStyle = "#10ac84";
+    pipes.forEach(p => {
+        ctx.fillRect(p.x, 0, 55, p.top);
+        ctx.fillRect(p.x, p.bottom, 55, canvas.height);
+    });
+}
+
+function updatePipes() {
+    pipes.forEach(p => p.x -= 2.2);
+
+    if (pipes.length && pipes[0].x < -60) {
+        pipes.shift();
+        score++;
+        document.getElementById("score").innerText = score;
+    }
+}
+
+// Collision
+function checkCollision() {
+    if (bird.y < 0 || bird.y + bird.size > canvas.height) endGame();
+
+    pipes.forEach(p => {
+        if (
+            bird.x + bird.size / 2 > p.x &&
+            bird.x - bird.size / 2 < p.x + 55 &&
+            (bird.y < p.top || bird.y + bird.size > p.bottom)
+        ) {
+            endGame();
+        }
+    });
+}
+
+// Game Over
+function endGame() {
+    if (gameOver) return;
+    gameOver = true;
+
+    gameOverSound.play(); // YOUR VOICE 🔊
+
+    if (score > highScore) {
+        highScore = score;
+        localStorage.setItem("flappyHigh", highScore);
+        document.getElementById("highScore").innerText = highScore;
+    }
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(gameOverImg, canvas.width/2 - 130, canvas.height/2 - 130, 260, 260);
+
+    ctx.fillStyle = "#fff";
+    ctx.font = "22px Arial";
+    ctx.fillText("Tap to Restart", canvas.width/2 - 70, canvas.height/2 + 160);
+
+    canvas.onclick = () => location.reload();
+    canvas.ontouchstart = () => location.reload();
+}
+
+// Game Loop
+function update() {
+    if (paused || gameOver) return;
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    bird.velocity += gravity;
+    bird.y += bird.velocity;
+
+    if (frame % 120 === 0) createPipe();
+
+    drawPlayer();
+    drawPipes();
+    updatePipes();
+    checkCollision();
+
+    frame++;
+}
+
+function loop() {
+    update();
+    requestAnimationFrame(loop);
+}
+
+// Controls
+function flap() {
+    if (!paused && !gameOver) {
+        bird.velocity = lift;
+        flapSound.currentTime = 0;
+        flapSound.play(); // YOUR VOICE 🔊
+    }
+}
+
+function pauseGame() { paused = true; }
+function resumeGame() { paused = false; }
+
+document.addEventListener("click", flap);
+document.addEventListener("touchstart", flap);
+
+loop();
+</script>
+
+</body>
+</html>
